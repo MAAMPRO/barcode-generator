@@ -1,0 +1,185 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Barcode & QR Studio | MAAMPRO</title>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --border: #334155;
+    }
+    * { box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+    body {
+      margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .container {
+      width: 100%; max-width: 540px; background: var(--card);
+      border: 1px solid var(--border); border-radius: 16px; padding: 28px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    }
+    h1 { margin: 0 0 6px; font-size: 1.5rem; }
+    p.sub { margin: 0 0 22px; color: var(--muted); font-size: 0.9rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    label { display: block; font-size: 0.82rem; color: var(--muted); margin-bottom: 6px; }
+    input, select {
+      width: 100%; padding: 10px 12px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--bg); color: var(--text);
+      font-size: 0.95rem; outline: none;
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+    input[type="color"] { height: 42px; padding: 4px; cursor: pointer; }
+    .preview-box {
+      margin: 20px 0; padding: 24px; background: #ffffff; border-radius: 12px;
+      min-height: 170px; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; overflow-x: auto;
+    }
+    #errorMsg { color: #ef4444; font-size: 0.85rem; margin-top: -10px; margin-bottom: 12px; display: none; }
+    .actions { display: flex; gap: 10px; }
+    button {
+      flex: 1; padding: 12px; border: none; border-radius: 8px;
+      font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: 0.2s;
+    }
+    .btn-primary { background: var(--accent); color: #0f172a; }
+    .btn-primary:hover { background: var(--accent-hover); color: #fff; }
+    .btn-secondary { background: var(--border); color: var(--text); }
+    .btn-secondary:hover { background: #475569; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Barcode &amp; QR Studio</h1>
+    <p class="sub">Generate retail UPC/EAN barcodes, Code 128 labels, and QR codes instantly.</p>
+
+    <div style="margin-bottom: 14px;">
+      <label for="dataInput">Value / Text / Product Code</label>
+      <input type="text" id="dataInput" value="MAAMPRO-2026" placeholder="Enter text or digits..." />
+    </div>
+
+    <div class="grid">
+      <div>
+        <label for="formatSelect">Symbology Format</label>
+        <select id="formatSelect">
+          <option value="CODE128" selected>Code 128 (Alphanumeric)</option>
+          <option value="QR">QR Code (2D Matrix)</option>
+          <option value="UPC">UPC-A (12 Digits)</option>
+          <option value="EAN13">EAN-13 (13 Digits)</option>
+          <option value="CODE39">Code 39 (Industrial)</option>
+        </select>
+      </div>
+      <div>
+        <label for="lineColor">Bar / Module Color</label>
+        <input type="color" id="lineColor" value="#0f172a" />
+      </div>
+    </div>
+
+    <div id="errorMsg"></div>
+
+    <div class="preview-box" id="previewBox">
+      <canvas id="barcodeCanvas"></canvas>
+      <div id="qrContainer" style="display:none;"></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn-primary" onclick="downloadPNG()">Download PNG</button>
+      <button class="btn-secondary" onclick="resetDefaults()">Reset</button>
+    </div>
+  </div>
+
+  <script>
+    const dataInput = document.getElementById('dataInput');
+    const formatSelect = document.getElementById('formatSelect');
+    const lineColor = document.getElementById('lineColor');
+    const barcodeCanvas = document.getElementById('barcodeCanvas');
+    const qrContainer = document.getElementById('qrContainer');
+    const errorMsg = document.getElementById('errorMsg');
+
+    const placeholders = {
+      CODE128: 'MAAMPRO-2026',
+      QR: 'https://github.com/MAAMPRO',
+      UPC: '012345678905',
+      EAN13: '5901234123457',
+      CODE39: 'ITEM-001'
+    };
+
+    formatSelect.addEventListener('change', () => {
+      dataInput.value = placeholders[formatSelect.value];
+      renderCode();
+    });
+
+    [dataInput, lineColor].forEach(el => el.addEventListener('input', renderCode));
+
+    function renderCode() {
+      const val = dataInput.value.trim();
+      const fmt = formatSelect.value;
+      const color = lineColor.value;
+      errorMsg.style.display = 'none';
+
+      if (!val) return;
+
+      if (fmt === 'QR') {
+        barcodeCanvas.style.display = 'none';
+        qrContainer.style.display = 'block';
+        qrContainer.innerHTML = '';
+        new QRCode(qrContainer, {
+          text: val,
+          width: 180,
+          height: 180,
+          colorDark: color,
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.H
+        });
+      } else {
+        qrContainer.style.display = 'none';
+        barcodeCanvas.style.display = 'block';
+        try {
+          JsBarcode(barcodeCanvas, val, {
+            format: fmt,
+            lineColor: color,
+            width: 2,
+            height: 85,
+            displayValue: true,
+            fontSize: 16,
+            margin: 10
+          });
+        } catch (err) {
+          errorMsg.textContent = `Invalid input for ${fmt}. Example: ${placeholders[fmt]}`;
+          errorMsg.style.display = 'block';
+        }
+      }
+    }
+
+    function downloadPNG() {
+      const fmt = formatSelect.value;
+      const link = document.createElement('a');
+      link.download = `${fmt.toLowerCase()}-${Date.now()}.png`;
+
+      if (fmt === 'QR') {
+        const canvas = qrContainer.querySelector('canvas');
+        if (!canvas) return;
+        link.href = canvas.toDataURL('image/png');
+      } else {
+        link.href = barcodeCanvas.toDataURL('image/png');
+      }
+      link.click();
+    }
+
+    function resetDefaults() {
+      formatSelect.value = 'CODE128';
+      dataInput.value = placeholders.CODE128;
+      lineColor.value = '#0f172a';
+      renderCode();
+    }
+
+    renderCode();
+  </script>
+</body>
+</html>
